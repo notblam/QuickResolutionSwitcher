@@ -4,6 +4,7 @@ using System.Collections;
 using System.ComponentModel;
 using System.Windows.Forms;
 using System.Data;
+using System.Runtime.InteropServices;
 
 namespace NotifyIconExample
 {
@@ -83,12 +84,93 @@ namespace NotifyIconExample
     }
     #endregion
 
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetDC(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    public static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
+
+    [DllImport("gdi32.dll")]
+    public static extern int GetDeviceCaps(IntPtr hdc, int nIndex);
+
+    [DllImport("user32.dll")]
+    public static extern int ChangeDisplaySettingsEx(string lpszDeviceName, ref DEVMODE lpDevMode, IntPtr hwnd, int dwflags, IntPtr lParam);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct DEVMODE
+    {
+      public const int CCHDEVICENAME = 32;
+      public const int DM_PELSWIDTH = 0x80000;
+      public const int DM_PELSHEIGHT = 0x100000;
+
+      [MarshalAs(UnmanagedType.ByValTStr, SizeConst = CCHDEVICENAME)]
+      public string dmDeviceName;
+      public short dmSpecVersion;
+      public short dmDriverVersion;
+      public short dmSize;
+      public short dmDriverExtra;
+      public int dmFields;
+      public int dmPositionX;
+      public int dmPositionY;
+      public int dmDisplayOrientation;
+      public int dmDisplayFixedOutput;
+      public short dmColor;
+      public short dmDuplex;
+      public short dmYResolution;
+      public short dmTTOption;
+      public short dmCollate;
+      [MarshalAs(UnmanagedType.ByValTStr, SizeConst = CCHDEVICENAME)]
+      public string dmFormName;
+      public short dmLogPixels;
+      public int dmBitsPerPel;
+      public int dmPelsWidth;
+      public int dmPelsHeight;
+      public int dmDisplayFlags;
+      public int dmDisplayFrequency;
+      public int dmICMMethod;
+      public int dmICMIntent;
+      public int dmMediaType;
+      public int dmDitherType;
+      public int dmReserved1;
+      public int dmReserved2;
+      public int dmPanningWidth;
+      public int dmPanningHeight;
+    }
+
+
     /// <summary>
     /// The main entry point for the application.
     /// </summary>
     [STAThread]
     static void Main()
     {
+      // Get the primary monitor's device context
+      IntPtr hdc = GetDC(IntPtr.Zero);
+
+      // Retrieve the current display settings
+      int screenWidth = GetDeviceCaps(hdc, 0x00);
+      int screenHeight = GetDeviceCaps(hdc, 0x01);
+
+      // Release the device context
+      ReleaseDC(IntPtr.Zero, hdc);
+
+      // Change the resolution to 1920x1080
+      DEVMODE devMode = new DEVMODE();
+      devMode.dmSize = (short)Marshal.SizeOf(devMode);
+      devMode.dmPelsWidth = 1920;
+      devMode.dmPelsHeight = 1080;
+      devMode.dmFields = DEVMODE.DM_PELSWIDTH | DEVMODE.DM_PELSHEIGHT;
+
+      // Apply the new display settings
+      int result = ChangeDisplaySettingsEx(null, ref devMode, IntPtr.Zero, 0x00000004 | 0x00000001, IntPtr.Zero);
+      if (result == 0)
+      {
+        Console.WriteLine("Display settings changed successfully.");
+      }
+      else
+      {
+        Console.WriteLine("Failed to change display settings. Error code: " + result);
+      }
       Application.Run(new NotifyIconForm());
     }
 
